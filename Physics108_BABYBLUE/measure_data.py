@@ -2,18 +2,18 @@ import visa
 import time
 import sys
 
-enable_22 = False	# Whether or not the nanovolt meter is connected
-enable_2 = False	# Whether or not the mod coil multimeter is connected
-enable_3 = True	# Whether or not the squid pickup multimeter is connected
-enable_4 = True		# Whether or not the temp probe multimeter is connected
-mod_sense_resistor = 101.0 # Value of mod coil sense resistor in ohms
-squid_sense_resistor = 101.0 # Value of squid pickup sense resister in ohms
+enable_22 = False				# Whether or not the nanovolt meter is connected
+enable_2 = False				# Whether or not the mod coil multimeter is connected
+enable_3 = True					# Whether or not the squid pickup multimeter is connected
+enable_4 = True					# Whether or not the temp probe multimeter is connected
+mod_sense_resistor = 101.0 		# Value of mod coil sense resistor in ohms
+squid_sense_resistor = 101.0 	# Value of squid pickup sense resister in ohms
 
 
-nanovolt_22_address = 'GPIB0::22::INSTR'
-multimeter_2_address = 'GPIB0::2::INSTR'
-multimeter_3_address = 'GPIB0::3::INSTR'
-multimeter_4_address = 'GPIB0::4::INSTR'
+nanovolt_22_address = 'GPIB0::22::INSTR'	# nanovolt meter
+multimeter_2_address = 'GPIB0::2::INSTR'	# mod coil multimeter
+multimeter_3_address = 'GPIB0::3::INSTR'	# squid pickup multimeter
+multimeter_4_address = 'GPIB0::4::INSTR'	# temp probe multimeter
 
 def main():
 	rm = visa.ResourceManager()
