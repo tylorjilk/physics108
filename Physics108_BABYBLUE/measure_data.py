@@ -11,10 +11,10 @@ enable_4 = True					# Whether or not the temp probe multimeter is connected
 mod_sense_resistor = 101.5 		# Value of mod coil sense resistor in ohms
 squid_sense_resistor = 101.5 	# Value of squid pickup sense resister in ohms
 
-nanovolt_22_address = 'GPIB0::22::INSTR'
-multimeter_2_address = 'GPIB0::2::INSTR'
-multimeter_3_address = 'GPIB0::3::INSTR'
-multimeter_4_address = 'GPIB0::4::INSTR'
+nanovolt_22_address = 'GPIB0::22::INSTR'	# nanovolt meter
+multimeter_2_address = 'GPIB0::2::INSTR'	# mod coil multimeter
+multimeter_3_address = 'GPIB0::3::INSTR'	# squid pickup multimeter
+multimeter_4_address = 'GPIB0::4::INSTR'	# temp probe multimeter
 
 def main():
 	rm = visa.ResourceManager()
