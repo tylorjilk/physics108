@@ -9,15 +9,18 @@ import sys
 def main():
 	df = pd.read_csv(sys.argv[1])
 	time = df['Time (s)']
-	voltage = df['Mod Coil Voltage (V)']
-	current = df['Calculated Mod Coil Current (A)']
-	plt.plot(current, voltage, 'bo')
-	plt.plot(np.unique(current), np.poly1d(np.polyfit(current, voltage, 1))(np.unique(current)))
-	print(np.poly1d(np.polyfit(current, voltage, 1)))
-	plt.text(-0.000018,-0.0000016, str(np.poly1d(np.polyfit(current, voltage, 1))))
-	plt.xlabel('Current (A)')
-	plt.ylabel('Voltage (V)')
-	plt.title('V-I Curve of a Resistor Using 4-Terminal Measurement')
+	squid_voltage = df['SQUID voltage (V)']
+	mod_voltage = df['Mod Coil Voltage (V)']
+	mod_current = df['Calculated Mod Coil Current (uA)']
+	squid_loop_voltage = df['SQUID Loop Voltage (V)']
+	squid_loop_current = df['Calculated Squid Current (uA)']
+	temp_voltage = df['Temp Probe Voltage (V)']
+	
+	plt.plot(mod_current, squid_voltage, 'bo')
+	plt.xlabel('Mod Current (uA)')
+	plt.ylabel('SQUID Voltage (V)')
+	squid_avg_current = "{:.2E}".format(np.average(squid_loop_current))
+	plt.title('Squid voltage vs mod current at ' + squid_avg_current + ' uA')
 	plt.show()
 
 if __name__ == "__main__":
