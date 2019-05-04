@@ -2,10 +2,10 @@ import visa
 import time
 import sys
 
-identifier = 'diode_4_terminal_test'
+identifier = 'test_4_loggers'
 
-enable_22 = False				# Whether or not the nanovolt meter is connected
-enable_2 = False				# Whether or not the mod coil multimeter is connected
+enable_22 = True				# Whether or not the nanovolt meter is connected
+enable_2 = True				# Whether or not the mod coil multimeter is connected
 enable_3 = True					# Whether or not the squid pickup multimeter is connected
 enable_4 = True					# Whether or not the temp probe multimeter is connected
 mod_sense_resistor = 101.5 		# Value of mod coil sense resistor in ohms
