@@ -2,13 +2,14 @@ import visa
 import time
 import sys
 
-enable_22 = False	# Whether or not the nanovolt meter is connected
-enable_2 = False	# Whether or not the mod coil multimeter is connected
-enable_3 = True	# Whether or not the squid pickup multimeter is connected
-enable_4 = True		# Whether or not the temp probe multimeter is connected
-mod_sense_resistor = 101.0 # Value of mod coil sense resistor in ohms
-squid_sense_resistor = 101.0 # Value of squid pickup sense resister in ohms
+identifier = 'diode_4_terminal_test'
 
+enable_22 = False				# Whether or not the nanovolt meter is connected
+enable_2 = False				# Whether or not the mod coil multimeter is connected
+enable_3 = True					# Whether or not the squid pickup multimeter is connected
+enable_4 = True					# Whether or not the temp probe multimeter is connected
+mod_sense_resistor = 101.5 		# Value of mod coil sense resistor in ohms
+squid_sense_resistor = 101.5 	# Value of squid pickup sense resister in ohms
 
 nanovolt_22_address = 'GPIB0::22::INSTR'
 multimeter_2_address = 'GPIB0::2::INSTR'
@@ -22,7 +23,7 @@ def main():
 	# Make a new log file with time appended to name
 	init_time = time.localtime()
 	timestamp = str(init_time.tm_hour) + str(init_time.tm_min) + str(init_time.tm_sec)
-	file = open("C:/Users/Student/physics108/Physics108_BABYBLUE/data/diode_4_terminal_test" + timestamp + ".txt", "w")
+	file = open("C:/Users/Student/physics108/Physics108_BABYBLUE/data/" + identifier + timestamp + ".txt", "w")
 
 	column_label = 'Time (s)'
 
