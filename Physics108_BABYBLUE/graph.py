@@ -9,12 +9,20 @@ import sys
 def main():
 	df = pd.read_csv(sys.argv[1])
 	time = df['Time (s)']
-	squid_voltage = df['SQUID voltage (V)']
-	mod_voltage = df['Mod Coil Voltage (V)']
-	mod_current = df['Calculated Mod Coil Current (uA)']
-	squid_loop_voltage = df['SQUID Loop Voltage (V)']
+	counter = df['Counter']
+	squid_voltage = df['SQUID voltage (V)']	
+	mod_current = df['Calculated Mod Coil Current (uA)']	
 	squid_loop_current = df['Calculated Squid Current (uA)']
 	temp_voltage = df['Temp Probe Voltage (V)']
+
+
+
+	#squid_voltage = df['SQUID voltage (V)']
+	#mod_voltage = df['Mod Coil Voltage (V)']
+	#mod_current = df['Calculated Mod Coil Current (uA)']
+	#squid_loop_voltage = df['SQUID Loop Voltage (V)']
+	#squid_loop_current = df['Calculated Squid Current (uA)']
+	#temp_voltage = df['Temp Probe Voltage (V)']
 	
 	plt.plot(mod_current, squid_voltage, 'bo')
 	plt.xlabel('Mod Current (uA)')

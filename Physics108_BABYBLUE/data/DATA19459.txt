@@ -1,0 +1,1 @@
+Time (s),SQUID voltage (V),SQUID Loop Voltage (V),Calculated Squid Current (uA),Temp Probe Voltage (V)
