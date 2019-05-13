@@ -31,7 +31,7 @@ def main():
 	plt.xlabel('Mod Current (uA)')
 	plt.ylabel('SQUID Voltage (V)')
 	mean_pickup_loop_current = "{:.2E}".format(np.average(pickup_loop_current))
-    mean_temp_voltage = "{:.4E}".format(np.average(temp_voltage))
+	mean_temp_voltage = "{:.4E}".format(np.average(temp_voltage))
 	plt.title('Squid Voltage vs Mod Current at pickup loop current ' \
            + mean_pickup_loop_current + 'uA, temperature voltage ' + mean_temp_voltage +'V')
     
