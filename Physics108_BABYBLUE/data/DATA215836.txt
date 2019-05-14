@@ -1,0 +1,4 @@
+Counter,Time(s),SQUID Voltage(uV),
+0,0.0
+1,5.01999998093
+2,10.0269999504
