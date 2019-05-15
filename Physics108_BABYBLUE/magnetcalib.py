@@ -24,9 +24,7 @@ def main():
 
  	if enable_5:
 		magnet_5 = rm.open_resource(magnet_5_address)
-		column_label += 'Magnet Current(mA)'        
-
-		magnet_5.write("TRIG:SOUR BUS")		
+		column_label += 'Magnet Current(mA)'        	
 
 	# Write column labels in the log file
 	print(column_label)
