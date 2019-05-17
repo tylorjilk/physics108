@@ -1,0 +1,1 @@
+Counter,Time(s),Magnet Current(A),Field Coil Current(mA),

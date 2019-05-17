@@ -1,0 +1,5 @@
+Counter,Time(s),Magnet Current(A),Field Coil Current(mA),SQUID Voltage(uV),
+0,0.00200009346008,,18.0376342
+1,0.507999897003,,18.0372782
+2,1.00900006294,,18.0369326
+
