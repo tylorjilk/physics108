@@ -1,0 +1,2 @@
+Counter,Time(s),Temperature Voltage(V),Magnet Current(A),Field Coil Current(mA),SQUID Voltage(uV),Mod Current(uA),Pickup Loop Current(uA),
+0,0.0150001049042,,0.003,,-38.52668,-0.0115285870756,-45.4371133005

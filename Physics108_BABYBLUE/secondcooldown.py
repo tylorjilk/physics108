@@ -7,16 +7,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
-identifier = 'MAGNETSHORTED'
+identifier = '10HOUR-Sun'
 
 magnet_constant = 0.10238 #field constant of magnet, T/A
 magnet_ramp_rate = 0.03 #ramp rate of magnet, T/s
-current_ramp_rate = 0.1 #magnet_ramp_rate/magnet_constant*0.1
-current_target = 1.0
+current_ramp_rate = 0.3 #magnet_ramp_rate/magnet_constant*0.1
+current_target = 1.5
 
 fc_sense_resistor = 50.0
 mod_sense_resistor = 9.13E3
-mod_bfr_resistor = 40.0E3
+mod_bfr_resistor = 15.0E3
 pickup_sense_resistor = 101.5
 
 init_enable_2 = True
@@ -37,9 +37,9 @@ init_enable_4 = True
 pickup_current_4_address = 'GPIB0::4::INSTR' 		# pickup loop current multimeter
 
 
-option = 1	# 0: produce t-V	1: produce Imod - V
-nanovolt_meas_time = 300.0
-target_mod_cur = 87.82E-6			# option 0
+option = 0	# 0: produce t-V	1: produce Imod - V
+nanovolt_meas_time = 60*60*10
+target_mod_cur = 47E-6 #87.82E-6			# option 0
 max_target_mod_cur = 250.0E-6		# option 1
 fitting = True	# produce Imod-V to sine curve
 
@@ -95,23 +95,31 @@ def magnet():
 	
 	#ramp up
 	magnet_5.write("CONF:CURR:PROG "+str(current_target))
-	magnet_5.write("UP")
+	magnet_5.write("RAMP")
 	while(curr < current_target-1E-2):       
 		print_out(file1, counter)
 		curr = float(magnet_5.query("CURR:MAG?").lstrip('\x00'))
 		time.sleep(0.1)
 		counter += 1
-	magnet_5.write("PAUSE")
+	#magnet_5.write("PAUSE")
+	
+	stage_time = time.time() 
+	current_stage_time = time.time() - stage_time
+	while(current_stage_time < 5):
+		print_out(file1, counter)
+		current_stage_time = time.time() - stage_time
+		time.sleep(0.1)
+		counter += 1
 	
 	#ramp down
 	#magnet_5.write("CONF:CURR:PROG 0.0") 
-	magnet_5.write("DOWN") # we might want ZERO
+	magnet_5.write("ZERO") # we might want ZERO
 	while(curr > 1E-2):
 		print_out(file1, counter)
 		curr = float(magnet_5.query("CURR:MAG?").lstrip('\x00'))
 		time.sleep(0.1)
 		counter += 1
-	magnet_5.write("ZERO")	
+	#magnet_5.write("ZERO")	
 	
 	file1.write('commanded current ramp rate: '+str(current_ramp_rate)+' A/s\n')
 	file1.write('commanded target current: '+str(current_target)+' A\n')
@@ -159,7 +167,7 @@ def nanovolt():
 		
 			
 	if option == 1:
-		for mod_cur_now in np.arange(0.0, max_target_mod_cur, 2.0E-6):
+		for mod_cur_now in np.arange(0, max_target_mod_cur, 2.0E-6):
 			mod_vol = mod_cur_now*(mod_bfr_resistor + mod_sense_resistor)/2.0
 			if mod_vol < 5:
 				modcoil_trigger_8.write("OFFS "+str(mod_vol))
