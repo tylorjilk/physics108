@@ -1,0 +1,2 @@
+Counter,Time(s),Field Coil Current(mA),Field Coil Voltage(mV),SQUID Voltage(uV),Pickup Loop Current(uA),
+0,0.0,5.5811344,0.001373,-34.9442,2.98071674877
