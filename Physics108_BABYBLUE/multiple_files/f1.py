@@ -18,15 +18,7 @@ def main():
 	p108.RUN_IDENTIFIER = str(raw_input("Identifier for this run?  "))
 	signal.signal(signal.SIGINT, signal_handler)
 	rm = visa.ResourceManager()
-	
-	global nanovoltmeter
-	global multimeter_squid_curr_sense
-	global multimeter_temperature
-	global multimeter_mod_curr_sense
-	global fngen_mod_curr_source
-	global fngen_fieldcoil_curr_trig
-	global magnet_programmer
-	
+
 	nanovoltmeter					= p108.Device( p108.NANOVOLTMETER_ADDRESS, 			rm, 	True)
 	multimeter_squid_curr_sense		= p108.Device( p108.SQUID_CURRENT_SENSE_ADDRESS, 	rm, 	False)
 	multimeter_temperature			= p108.Device( p108.TEMPERATURE_ADDRESS, 			rm, 	True)
@@ -35,13 +27,14 @@ def main():
 	fngen_fieldcoil_curr_trig		= p108.Device( p108.FIELDCOIL_CURRENT_TRIG_ADDRESS,	rm, 	False)
 	magnet_programmer				= p108.Device( p108.MAGNET_PROG_ADDRESS,			rm, 	False)
 	
-	global device_list
-	device_list = [	nanovoltmeter, 
-					multimeter_squid_curr_sense, 
-					multimeter_temperature,
-					multimeter_mod_curr_sense,
-					fngen_mod_curr_source,
-					fngen_fieldcoil_curr_trig]
+	global device_dict
+	device_list = [	"nanovolt" : nanovoltmeter, 
+					"squid_curr_sen" : multimeter_squid_curr_sense, 
+					"temp" : multimeter_temperature,
+					"mod_curr_sen" : multimeter_mod_curr_sense,
+					"mod_curr_sour" : fngen_mod_curr_source,
+					"fc_curr_sour" : fngen_fieldcoil_curr_trig,
+					"magnet_prog": magnet_programmer]
 	
 	configure_devices()
 	configure_data_constants()
@@ -73,20 +66,22 @@ def save_data():
 	filename = "C:/Users/Student/physics108/Physics108_BABYBLUE/testdata/" + str(p108.RUN_IDENTIFIER) + "_" + timestamp + ".txt"
 	file = open(filename, "w")
 	
-	datalist = []
-	for device in device_list:
-		if device.isEnabled():
-			data = device.get_complete_data()
-			datalist.append(data)
-	df = pd.DataFrame({	'A': datalist[0],
-						'B': datalist[1]	})
-	df.to_csv(filename)
+	dataframe = retrieve_data()
+	dataframe.to_csv(filename)
 
 def clear_devices():
-	for device in device_list:
-		if device.isEnabled():
-			device.write('*CLS')
-			device.write('*RST')
+	for device in device_dict:
+		if device_dict[device].isEnabled():
+			device_dict[device].write('*CLS')
+			device_dict[device].write('*RST')
+			
+def retrieve_data():
+	for device in device_dict:
+		if device_dict[device].isEnabled():
+			data = device_dict[device].get_complete_data()
+			datalist.append(data)
+	return pd.DataFrame({	'A'	: datalist[0],
+							'B': datalist[1]	})
 		
 if __name__ == "__main__":
     main()
