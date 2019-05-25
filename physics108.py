@@ -47,9 +47,11 @@ FNGEN_TRIG_COMMAND 				= 'APPL:SQU ' + str(SAMPLING_RATE) + ', 5, 2.5'
 
 
 """
-Device Class
+==============================================================================
+HP 34401A: MULTIMETER
+==============================================================================
 """
-class Device:
+class Device_34401A:
 	def __init__(self, address, resourceManager, en):
 		self.address = address
 		self.en = en
@@ -71,9 +73,8 @@ class Device:
 	def connect(self): # Opens the pyvisa comms pathway to device
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
-			if self.address is not MAGNET_PROG_ADDRESS and self.address is not FIELDCOIL_CURRENT_TRIG_ADDRESS:
-				self.write('*CLS')
-				self.write('*RST')
+			self.write('*CLS')
+			self.write('*RST')
 	
 	def setResValue(self, res): # Sets the sense resistor value, in ohms
 		self.resistorValue = res
@@ -111,8 +112,165 @@ class Device:
 				print("Error fetching data.")
 		else:
 			return None
+			
+	def get_complete_data(self):
+		return self.data
+
+"""
+==============================================================================
+AGILENT 34420A: NANO VOLT METER
+==============================================================================
+"""
+class Device_34420A:
+	def __init__(self, address, resourceManager, en):
+		self.address = address
+		self.en = en
+		self.rm = resourceManager
+		self.data = {}
+		self.prev_data_start_time = 0
+		if self.en:
+			self.connect()
 	
-	def fetc_data_magnet(self):
+	def enable(self): # Enables the device
+		self.en = True
+	
+	def disable(self): # Disables the device
+		self.en = False
+		
+	def isEnabled(self): # Returns the enabled status of device
+		return self.en
+		
+	def connect(self): # Opens the pyvisa comms pathway to device
+		if self.en:
+			self.resource = self.rm.open_resource(self.address)
+			self.write('*CLS')
+			self.write('*RST')
+	
+	def write(self, message): # Writes a message to the device
+		if self.en:
+			self.resource.write(message)
+	
+	def query(self, message): # Queries a message to the device and returns the response
+		if self.en:
+			return self.resource.query(message)
+		else:
+			return None
+	
+	def init(self):
+		if self.en:
+			self.write('INIT')
+			self.prev_data_start_time = time.time()
+	
+	def fetc_data(self):
+		if self.en:
+			try:
+				newdata = (self.resource.query('FETC?').strip('\n')).split(',')
+				end_time = self.prev_data_start_time + SAMPLING_TIMESTRETCH
+				timepoints = np.linspace(self.prev_data_start_time, end_time, SAMPLING_NUM_POINTS)
+				x = 0
+				for datapoint in newdata:
+					self.data[timepoints[x]] = datapoint
+					x += 1
+				return newdata
+			except IOError:
+				print("Error fetching data.")
+		else:
+			return None
+			
+	def get_complete_data(self):
+		return self.data
+
+"""
+==============================================================================
+SRS DS345: SYNTHESIZED FUNCTION GENERATOR
+==============================================================================
+"""
+class Device_DS345:
+	def __init__(self, address, resourceManager, en):
+		self.address = address
+		self.en = en
+		self.rm = resourceManager
+		self.prev_data_start_time = 0
+		if self.en:
+			self.connect()
+	
+	def enable(self): # Enables the device
+		self.en = True
+	
+	def disable(self): # Disables the device
+		self.en = False
+		
+	def isEnabled(self): # Returns the enabled status of device
+		return self.en
+		
+	def connect(self): # Opens the pyvisa comms pathway to device
+		if self.en:
+			self.resource = self.rm.open_resource(self.address)
+	
+	def write(self, message): # Writes a message to the device
+		if self.en:
+			self.resource.write(message)
+	
+	def query(self, message): # Queries a message to the device and returns the response
+		if self.en:
+			return self.resource.query(message)
+		else:
+			return None
+	
+	def init(self):
+		if self.en:
+			self.write('INIT')
+
+"""
+==============================================================================
+AMI MODEL 420: POWER SUPPLY PROGRAMMER
+==============================================================================
+"""
+class Device_Model420:
+	def __init__(self, address, resourceManager, en):
+		self.address = address
+		self.en = en
+		self.rm = resourceManager
+		self.data = {}
+		self.prev_data_start_time = 0
+		if self.en:
+			self.connect()
+	
+	def enable(self): # Enables the device
+		self.en = True
+	
+	def disable(self): # Disables the device
+		self.en = False
+		
+	def isEnabled(self): # Returns the enabled status of device
+		return self.en
+		
+	def connect(self): # Opens the pyvisa comms pathway to device
+		if self.en:
+			self.resource = self.rm.open_resource(self.address)
+	
+	def setResValue(self, res): # Sets the sense resistor value, in ohms
+		self.resistorValue = res
+		
+	def getResVallue(self): # Returns the sense resistor value, in ohms
+		return self.resistorValue
+	
+	def write(self, message): # Writes a message to the device
+		if self.en:
+			self.resource.write(message)
+	
+	def query(self, message): # Queries a message to the device and returns the response
+		if self.en:
+			return self.resource.query(message)
+		else:
+			return None
+	
+	def init(self):
+		if self.en:
+			self.write('INIT')
+			self.prev_data_start_time = time.time()
+	
+	def fetc_data(self):
 		if self.en:
 			try:
 				newdatapoint = float(self.resource.query("CURR:MAG?").lstrip('\x00'))
@@ -121,6 +279,76 @@ class Device:
 				return newdatapoint
 			except VI_Error_TMO:
 				print("Error fetching magnet data.")
+		else:
+			return None
+			
+	def get_complete_data(self):
+		return self.data
+
+"""
+==============================================================================
+HP 33120A: ARBITRARY WAVEFORM GENERATOR
+==============================================================================
+"""
+class Device_33120A:
+	def __init__(self, address, resourceManager, en):
+		self.address = address
+		self.en = en
+		self.rm = resourceManager
+		self.data = {}
+		self.prev_data_start_time = 0
+		if self.en:
+			self.connect()
+	
+	def enable(self): # Enables the device
+		self.en = True
+	
+	def disable(self): # Disables the device
+		self.en = False
+		
+	def isEnabled(self): # Returns the enabled status of device
+		return self.en
+		
+	def connect(self): # Opens the pyvisa comms pathway to device
+		if self.en:
+			self.resource = self.rm.open_resource(self.address)
+			self.write('*CLS')
+			self.write('*RST')
+	
+	def setResValue(self, res): # Sets the sense resistor value, in ohms
+		self.resistorValue = res
+		
+	def getResVallue(self): # Returns the sense resistor value, in ohms
+		return self.resistorValue
+	
+	def write(self, message): # Writes a message to the device
+		if self.en:
+			self.resource.write(message)
+	
+	def query(self, message): # Queries a message to the device and returns the response
+		if self.en:
+			return self.resource.query(message)
+		else:
+			return None
+	
+	def init(self):
+		if self.en:
+			self.write('INIT')
+			self.prev_data_start_time = time.time()
+	
+	def fetc_data(self):
+		if self.en:
+			try:
+				newdata = (self.resource.query('FETC?').strip('\n')).split(',')
+				end_time = self.prev_data_start_time + SAMPLING_TIMESTRETCH
+				timepoints = np.linspace(self.prev_data_start_time, end_time, SAMPLING_NUM_POINTS)
+				x = 0
+				for datapoint in newdata:
+					self.data[timepoints[x]] = datapoint
+					x += 1
+				return newdata
+			except IOError:
+				print("Error fetching data.")
 		else:
 			return None
 			
