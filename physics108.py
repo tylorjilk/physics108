@@ -13,18 +13,27 @@ TEMPERATURE_ADDRESS				= 'GPIB0::2::INSTR'
 MOD_CURRENT_SENSE_ADDRESS		= 'GPIB0::9::INSTR'
 MOD_CURRENT_SOURCE_ADDRESS		= 'GPIB0::8::INSTR'
 FIELDCOIL_CURRENT_TRIG_ADDRESS	= 'GPIB0::7::INSTR'
+FIELDCOIL_CURRENT_SEN_ADDRESS	= ''
 MAGNET_PROG_ADDRESS				= 'GPIB0::5::INSTR'
 EXT_TRIGGER_ADDRESS				= 'GPIB0::6::INSTR'
 
-NANOVOLTMETER_COLUMN_HEADING 	= ''
-SQUID_CURR_SEN_COLUMN_HEADING 	= ''
-TEMPERATURE_COLUMN_HEADING		= ''
-MOD_CURR_SEN_COLUMN_HEADING		= ''
-MOD_CURR_SOUR_COLUMN_HEADING	= ''
-FC_CURR_TRIG_COLUMN_HEADING		= ''
-MAGNET_PROG_COLUMN_HEADING		= ''
+NANOVOLTMETER_COLUMN_HEADING 	= 'SQUID_Volt(V)'
+SQUID_CURR_SEN_COLUMN_HEADING 	= 'SQUID_Curr(A)'
+TEMPERATURE_COLUMN_HEADING		= 'Temp(V)'
+MOD_CURR_SEN_COLUMN_HEADING		= 'MOD_CURR(A)'
+FC_CURR_SEN_COLUMN_HEADING		= 'FC_CURR(A)'
+MAGNET_PROG_COLUMN_HEADING		= 'MAG_CURR(A)'
 
 RUN_IDENTIFIER					= ''
+RUN_SELECTION_ID				= 0			# Set by user input
+"""
+	Options for RUN_SELECTION_ID are:
+		(1) voltage-versus-time of squid
+		(2) voltage-versus-mod coil current
+		(3) magnet run with reset squid and nv measure
+		(4) magnet run
+		(5) reset squid
+"""
 SAMPLING_RATE 					= 5 		# Hz
 SAMPLING_TIMESTRETCH			= 5 		# seconds
 SAMPLING_NUM_POINTS				= SAMPLING_RATE*SAMPLING_TIMESTRETCH
@@ -41,9 +50,14 @@ FIELDCOIL_SENSE_RESISTOR 		= 50.0		# ohms
 MOD_SENSE_RESISTOR 				= 9.13E3	# ohms
 MOD_BFR_RESISTOR 				= 15.0E3	# ohms
 SQUID_CURR_SENSE_RESISTOR 		= 101.5		# ohms
+MOD_CURR_OPTIMAL				= 0			# mA, current of mod coils at steepest part of curve
+MOD_VOLT_OPTIMAL				= MOD_CURR_OPTIMAL*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
+MOD_CURR_TARGET_MAX				= 250.0E-6	# mA, maximum current in sweep
+MOD_CURR_STEP					= 2.0E-6	# mA, the spacing between each mod coil current value
 
 FNGEN_ZERO_COMMAND 				= 'APPL:DC DEF, DEF, 0'
 FNGEN_TRIG_COMMAND 				= 'APPL:SQU ' + str(SAMPLING_RATE) + ', 5, 2.5'
+FNGEN_CURR_OPTIMAL_COMMAND		= 'OFFS ' + str(MOD_VOLT_OPTIMAL) + ' VP'
 
 
 """
@@ -75,6 +89,13 @@ class Device_34401A:
 			self.resource = self.rm.open_resource(self.address)
 			self.write('*CLS')
 			self.write('*RST')
+	
+	def configure(self):
+		if self.en:
+			self.write('CONF:VOLT:DC')
+			self.write('TRIG:SOUR EXT')
+			self.write('TRIG:COUN ' + str(p108.SAMPLING_NUM_POINTS))
+			self.init()
 	
 	def setResValue(self, res): # Sets the sense resistor value, in ohms
 		self.resistorValue = res
@@ -146,6 +167,15 @@ class Device_34420A:
 			self.write('*CLS')
 			self.write('*RST')
 	
+	def configure(self):
+		if self.en:
+			self.write('CONF:VOLT:DC:DIFF')
+			self.write('SENS:VOLT:DC:NPLC 2')
+			self.write('TRIG:SOUR EXT')
+			self.write('TRIG:COUN ' + str(p108.SAMPLING_NUM_POINTS))
+			self.write('TRIG:DEL 0')
+			self.init()
+	
 	def write(self, message): # Writes a message to the device
 		if self.en:
 			self.resource.write(message)
@@ -191,6 +221,7 @@ class Device_DS345:
 		self.en = en
 		self.rm = resourceManager
 		self.prev_data_start_time = 0
+		self.data = None
 		if self.en:
 			self.connect()
 	
@@ -207,6 +238,10 @@ class Device_DS345:
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
 	
+	def configure(self):
+		if self.en:
+			self.write('OFFS 0 VP')
+	
 	def write(self, message): # Writes a message to the device
 		if self.en:
 			self.resource.write(message)
@@ -216,6 +251,17 @@ class Device_DS345:
 			return self.resource.query(message)
 		else:
 			return None
+	
+	def set_optimal_current(self):
+		if self.en:
+			self.write(FNGEN_CURR_OPTIMAL_COMMAND)
+	
+	def set_current(self, curr):
+		if self.en:
+			v = curr*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
+			msg = 'OFFS ' + str(v) + ' VP'
+			if curr <= MOD_CURR_TARGET_MAX:
+				self.write(msg)
 	
 	def init(self):
 		if self.en:
@@ -248,12 +294,10 @@ class Device_Model420:
 	def connect(self): # Opens the pyvisa comms pathway to device
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
-	
-	def setResValue(self, res): # Sets the sense resistor value, in ohms
-		self.resistorValue = res
-		
-	def getResVallue(self): # Returns the sense resistor value, in ohms
-		return self.resistorValue
+
+	def configure(self):
+		if self.en:
+			self.write("CONF:RAMP:RATE:CURR " + str(p108.MAGNET_CURRENT_RAMP_RATE) + " A/s")
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -270,7 +314,7 @@ class Device_Model420:
 			self.write('INIT')
 			self.prev_data_start_time = time.time()
 	
-	def fetc_data(self):
+	def take_datapoint(self):
 		if self.en:
 			try:
 				newdatapoint = float(self.resource.query("CURR:MAG?").lstrip('\x00'))
@@ -295,7 +339,7 @@ class Device_33120A:
 		self.address = address
 		self.en = en
 		self.rm = resourceManager
-		self.data = {}
+		self.data = None
 		self.prev_data_start_time = 0
 		if self.en:
 			self.connect()
@@ -315,11 +359,9 @@ class Device_33120A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def setResValue(self, res): # Sets the sense resistor value, in ohms
-		self.resistorValue = res
-		
-	def getResVallue(self): # Returns the sense resistor value, in ohms
-		return self.resistorValue
+	def configure(self):
+		if self.en:
+			self.write(p108.FNGEN_ZERO_COMMAND)
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -330,27 +372,3 @@ class Device_33120A:
 			return self.resource.query(message)
 		else:
 			return None
-	
-	def init(self):
-		if self.en:
-			self.write('INIT')
-			self.prev_data_start_time = time.time()
-	
-	def fetc_data(self):
-		if self.en:
-			try:
-				newdata = (self.resource.query('FETC?').strip('\n')).split(',')
-				end_time = self.prev_data_start_time + SAMPLING_TIMESTRETCH
-				timepoints = np.linspace(self.prev_data_start_time, end_time, SAMPLING_NUM_POINTS)
-				x = 0
-				for datapoint in newdata:
-					self.data[timepoints[x]] = datapoint
-					x += 1
-				return newdata
-			except IOError:
-				print("Error fetching data.")
-		else:
-			return None
-			
-	def get_complete_data(self):
-		return self.data
