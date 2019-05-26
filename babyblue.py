@@ -11,7 +11,7 @@ import msvcrt
 def signal_handler(sig, frame):
 	print('\nYou pressed ctrl c')
 	print('Resetting devices.')
-	#clear_devices()
+	clear_devices()
 	print('Saving data...'),
 	save_data()
 	print('goodbye.')
@@ -22,10 +22,15 @@ def clear_input():
 		msvcrt.getch()
 
 def configure_devices():
-	time_start = time.time()
 	for device in device_dict:
-		device_dict[device].configure(time_start)
-	time.sleep(p108.INIT_TIME_DELAY) # Need at least 20ms delay for devices to initialize
+		device_dict[device].configure()
+	#time.sleep(p108.INIT_TIME_DELAY) # Need at least 20ms delay for devices to initialize
+	
+def init_devices():
+	time_now = time.time()
+	for device in device_dict:
+		if device_dict[device].needs_init():
+			device_dict[device].init(time_now)
 
 def save_data():
 	# Make a new log file with time appended to name
@@ -47,24 +52,26 @@ def save_data():
 			df_list.remove(df)
 	df_final = pd.DataFrame()
 	if len(df_list) > 1:
-		while True:
-			if len(df_list) >= 2:
-				df1 = df_list[0]
-				df2 = df_list[1]
-				df_final = pd.merge(df1,df2,on=['timestamp'],how='outer')
-				df_list.remove(df1)
-				df_list.remove(df2)
-			elif len(df_list) == 1:
-				df1 = df_list[0]
-				df_final = pd.merge(df1,df_final,on=['timestamp'],how='outer')
-				df_list.remove(df1)
-			else:
-				break
+		df0 = df_list[0]
+		df_final = df0
+		df_list.remove(df0)
+		while len(df_list) >= 1:
+			df1 = df_list[0]
+			df_final = pd.merge(df1,df_final,on=['timestamp'],how='outer')
+			df_list.remove(df1)
 	else:
 		df_final = df_list[0]
 	print('\n')
 	print(df_final)
 	df_final.to_csv(filename)
+
+def clear_devices():
+	for device in device_dict:
+		if device_dict[device].needs_init():
+			device_dict[device].write('*CLS')
+			device_dict[device].write('*RST')
+		if device is "ext_trig":
+			device_dict[device].write(p108.FNGEN_ZERO_COMMAND)
 
 def main():
 	signal.signal(signal.SIGINT, signal_handler)
@@ -87,15 +94,15 @@ def main():
 	
 	# Create devices that the program will communicate with
 	rm = visa.ResourceManager()
-	nanovoltmeter				= p108.Device_34420A(	p108.NANOVOLTMETER_ADDRESS, 		p108.NANOVOLTMETER_COLUMN_HEADING,	rm,	False	)
-	multimeter_squid_curr_sense	= p108.Device_34401A(	p108.SQUID_CURRENT_SENSE_ADDRESS,	p108.SQUID_CURR_SEN_COLUMN_HEADING,	rm,	False	)
+	nanovoltmeter				= p108.Device_34420A(	p108.NANOVOLTMETER_ADDRESS, 		p108.NANOVOLTMETER_COLUMN_HEADING,	rm,	True	)
+	multimeter_squid_curr_sense	= p108.Device_34401A(	p108.SQUID_CURRENT_SENSE_ADDRESS,	p108.SQUID_CURR_SEN_COLUMN_HEADING,	rm,	True	)
 	multimeter_temperature		= p108.Device_34401A(	p108.TEMPERATURE_ADDRESS, 			p108.TEMPERATURE_COLUMN_HEADING,	rm,	False	)
-	multimeter_mod_curr_sense 	= p108.Device_34401A(	p108.MOD_CURRENT_SENSE_ADDRESS,	 	p108.MOD_CURR_SEN_COLUMN_HEADING,	rm,	False	)
-	fngen_mod_curr_source		= p108.Device_DS345(	p108.MOD_CURRENT_SOURCE_ADDRESS,										rm,	False	)
-	fngen_fieldcoil_curr_trig	= p108.Device_DS345(	p108.FIELDCOIL_CURRENT_TRIG_ADDRESS,									rm, True	)
-	multimeter_fieldcoil_sense	= p108.Device_34401A(	p108.FIELDCOIL_CURRENT_SEN_ADDRESS,	p108.FC_CURR_SEN_COLUMN_HEADING,	rm,	True	)
+	multimeter_mod_curr_sense 	= p108.Device_34401A(	p108.MOD_CURRENT_SENSE_ADDRESS,	 	p108.MOD_CURR_SEN_COLUMN_HEADING,	rm,	True	)
+	fngen_mod_curr_source		= p108.Device_DS345(	p108.MOD_CURRENT_SOURCE_ADDRESS,										rm,	True	)
+	fngen_fieldcoil_curr_trig	= p108.Device_DS345(	p108.FIELDCOIL_CURRENT_TRIG_ADDRESS,									rm, False	)
+	multimeter_fieldcoil_sense	= p108.Device_34401A(	p108.FIELDCOIL_CURRENT_SEN_ADDRESS,	p108.FC_CURR_SEN_COLUMN_HEADING,	rm,	False	)
 	magnet_programmer			= p108.Device_Model420(	p108.MAGNET_PROG_ADDRESS,			p108.MAGNET_PROG_COLUMN_HEADING	,	rm,	False	)
-	fngen_ext_trigger 			= p108.Device_33120A(	p108.EXT_TRIGGER_ADDRESS,												rm,	False	)
+	fngen_ext_trigger 			= p108.Device_33120A(	p108.EXT_TRIGGER_ADDRESS,												rm,	True	)
 	
 	# Create a global dictionary which contains all of the devices
 	# This way other methods can use the dictionary
@@ -137,6 +144,8 @@ def main():
 	if p108.RUN_SELECTION_ID == 1:
 		print("Setting mod coil current to " + str(p108.MOD_CURR_OPTIMAL) + " mA")
 		fngen_mod_curr_source.set_optimal_current()
+		init_devices()
+		time.sleep(p108.INIT_TIME_DELAY)
 		fngen_ext_trigger.write(p108.FNGEN_TRIG_COMMAND)
 		prev_data_time = time.time()
 		while True:
@@ -144,9 +153,11 @@ def main():
 				sys.stdout.write('Measuring data...')
 				multimeter_temperature.fetc_data()
 				nanovoltmeter.fetc_data()
+				multimeter_squid_curr_sense.fetc_data()
+				multimeter_mod_curr_sense.fetc_data()
+				#multimeter_fieldcoil_sense.fetc_data()
 				prev_data_time = time.time()
-				multimeter_temperature.init(prev_data_time)
-				nanovoltmeter.init(prev_data_time)
+				init_devices()
 				
 				sys.stdout.write('\r')
 				sys.stdout.flush()
@@ -160,16 +171,16 @@ def main():
 		step = 1
 		prev_data_time = time.time()
 		prev_curr_time = prev_data_time
+		init_devices()
 		while True:
 			if time.time() - prev_data_time >= p108.SAMPLING_TIMESTRETCH:
 				sys.stdout.write('Measuring data...')
 				multimeter_temperature.fetc_data()
 				nanovoltmeter.fetc_data()
 				multimeter_mod_curr_sense.fetc_data()
+				multimeter_squid_curr_sense.fetc_data()
 				prev_data_time = time.time()
-				multimeter_temperature.init(prev_data_time)
-				nanovoltmeter.init(prev_data_time)
-				multimeter_mod_curr_sense.init(prev_data_time)
+				init_devices()
 				
 				sys.stdout.write('\r')
 				sys.stdout.flush()
@@ -186,6 +197,7 @@ def main():
 	
 	# (3) magnet run with reset squid and nv measure
 	elif p108.RUN_SELECTION_ID == 3:
+		init_devices()
 		print("Are you sure you want to start the magnet?")
 		while(True):
 			mag = str(raw_input('(y/n) ')).strip('\n')
@@ -212,8 +224,7 @@ def main():
 						sys.stdout.flush()
 				clear_input()
 				ramp_down_magnet()
-				log_ramp_down()
-				drive_field_coil()
+				log_ramp_down(True)
 				break
 			elif mag == 'n':
 				print("NOT starting magnet.")
@@ -223,12 +234,11 @@ def main():
 		prev_data_time = time.time()
 		while True:
 			if time.time() - prev_data_time >= p108.SAMPLING_TIMESTRETCH:
-				sys.stdout.write('Measuring data...')
+				sys.stdout.write('Measuring data...' + str(prev_data_time) + '      ')
 				multimeter_temperature.fetc_data()
 				nanovoltmeter.fetc_data()
 				prev_data_time = time.time()
-				multimeter_temperature.init(prev_data_time)
-				nanovoltmeter.init(prev_data_time)
+				init_devices()
 				
 				sys.stdout.write('\r')
 				sys.stdout.flush()
@@ -263,7 +273,7 @@ def main():
 						sys.stdout.flush()
 				clear_input()
 				ramp_down_magnet()
-				log_ramp_down()
+				log_ramp_down(False)
 				break
 			elif mag == 'n':
 				print("NOT starting magnet.")
@@ -282,50 +292,6 @@ def main():
 				print("and done.")
 				fngen_fieldcoil_curr_trig.set_fc_current(0)
 				break
-	
-	"""
-	fngen_ext_trigger.write(p108.FNGEN_TRIG_COMMAND)
-	init_time = time.time()
-	prev_data_time = init_time
-	
-	while(True):
-		while not msvcrt.kbhit() or msvcrt.getch() != "m":
-			if time.time() - prev_data_time >= p108.SAMPLING_TIMESTRETCH:
-				sys.stdout.write('Measuring data...')
-				multimeter_temperature.fetc_data() # Want to measure right away after the magnet though
-				nanovoltmeter.fetc_data()
-				multimeter_temperature.init()
-				nanovoltmeter.init()
-				prev_data_time = time.time()
-				sys.stdout.write('\r')
-				sys.stdout.flush()
-				time.sleep(p108.INIT_TIME_DELAY)
-		clear_input()
-		print("Data capture paused.")
-		print("Are you sure you want to start the magnet?")
-		while(True):
-			mag = str(raw_input('(y/n)  ')).strip('\n')
-			if mag == 'y':
-				ramp_up_magnet()
-				log_ramp_up()
-				time.sleep(5)
-				ramp_down_magnet()
-				log_ramp_down()
-				drive_field_coil()
-				break
-			elif mag == 'n':
-				print("NOT starting magnet.")
-				break
-			else:
-				print("There are only two possible answers. Try again.")
-		"""
-
-def clear_devices():
-	for device in device_dict:
-		if device is not "magnet_prog":
-			if device_dict[device].isEnabled():
-				device_dict[device].write('*CLS')
-				device_dict[device].write('*RST')
 			
 def retrieve_data():
 	datalist = []
@@ -343,9 +309,14 @@ def ramp_up_magnet():
 	magnet.write("RAMP")
 
 def ramp_down_magnet():
-	print('Ramping down magnet.')
+	print('\nRamping down magnet.')
 	magnet = device_dict["magnet_prog"]
-	magnet.write('ZERO')
+	while True:
+		try:
+			magnet.write('ZERO')
+			break
+		except IOError:
+			print("error zero-ing magnet")
 	
 def log_ramp_up():
 	magnet = device_dict["magnet_prog"]
@@ -358,15 +329,38 @@ def log_ramp_up():
 		time.sleep(p108.SAMPLING_DELAY_MAGNET)
 	print('\nTarget current of ' + str(p108.MAGNET_CURRENT_TARGET) + ' A achieved.')
 	
-def log_ramp_down():
+def log_ramp_down(fieldcoil_bool):
 	magnet = device_dict["magnet_prog"]
+	fngen_fieldcoil_curr_trig = device_dict["fc_curr_sour"]
+	fngen_fieldcoil_curr_trig = device_dict["fc_curr_sour"]
+	fngen_ext_trigger = device_dict["ext_trig"]
+	nanovoltmeter = device_dict["nanovolt"]
 	current = magnet.take_datapoint()
+	time_prev = time.time()
+	fieldcoils_high = False
+	ext_trig_on = False
 	while current > p108.MAGNET_CURRENT_MARGIN:
-		current = magnet.take_datapoint()
-		sys.stdout.write('Ramping magnet: ' + str(current) + ' A   ')
-		sys.stdout.write('\r')
-		sys.stdout.flush()
-		time.sleep(p108.SAMPLING_DELAY_MAGNET)
+		if time.time() - time_prev >= p108.SAMPLING_DELAY_MAGNET:
+			time_prev = time.time()
+			current = magnet.take_datapoint()
+			sys.stdout.write('Ramping magnet: ' + str(current) + ' A   ')
+			sys.stdout.write('\r')
+			sys.stdout.flush()
+		if current / p108.MAGNET_CURRENT_RAMP_RATE <= p108.FIELDCOIL_RESET_TIME and fieldcoil_bool and not fieldcoils_high:
+			fieldcoils_high = True
+			print("Driving field coils high")
+			fngen_fieldcoil_curr_trig.set_fc_current(p108.FIELDCOIL_TARGET_CURRENT)
+		if current / p108.MAGNET_CURRENT_RAMP_RATE <= p108.FIELDCOIL_INIT_DELAY and fieldcoil_bool and not ext_trig_on:
+			ext_trig_on = True
+			print("\nTurning on external trigger")
+			start_time = time.time()
+			for device in device_dict:
+				if device_dict[device].needs_init():
+					device_dict[device].prev_data_start_time = start_time
+			fngen_ext_trigger.write(p108.FNGEN_TRIG_COMMAND)
+	if fieldcoil_bool:
+		print("Driving field coils low")
+		fngen_fieldcoil_curr_trig.set_fc_current(0)
 	print('\nMagnet successfully ramped down.')
 	
 def drive_field_coil():

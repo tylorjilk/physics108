@@ -1,11 +1,12 @@
 import numpy as np
 import time
+import visa
 
 """
 List of constants
 """
 
-TEST							= True
+TEST							= False
 
 NANOVOLTMETER_ADDRESS			= 'GPIB0::22::INSTR'
 SQUID_CURRENT_SENSE_ADDRESS		= 'GPIB0::4::INSTR'
@@ -24,7 +25,7 @@ MOD_CURR_SEN_COLUMN_HEADING		= 'MOD_CURR(A)'
 FC_CURR_SEN_COLUMN_HEADING		= 'FC_CURR(A)'
 MAGNET_PROG_COLUMN_HEADING		= 'MAG_CURR(A)'
 
-RUN_IDENTIFIER					= ''
+RUN_IDENTIFIER					= ''		# Set by user input
 RUN_SELECTION_ID				= 0			# Set by user input
 """
 	Options for RUN_SELECTION_ID are:
@@ -44,11 +45,12 @@ MAGNET_FIELD_CONSTANT 			= 0.10238 	#field constant of magnet, T/A
 MAGNET_FIELD_RAMP_RATE 			= 0.03		# ramp rate of magnet, T/s
 MAGNET_CURRENT_RAMP_RATE 		= 0.3 		# 0.3 A/s  magnet_ramp_rate/magnet_constant*0.1
 MAGNET_CURRENT_TARGET			= 1.5 		# 1.5 A
-MAGNET_CURRENT_MARGIN			= 0.01		# A
+MAGNET_CURRENT_MARGIN			= 0.005		# A
 
 FIELDCOIL_SENSE_RESISTOR 		= 50.0		# ohms
 FIELDCOIL_TARGET_CURRENT		= 0.085		# A
 FIELDCOIL_RESET_TIME			= 2			# seconds
+FIELDCOIL_INIT_DELAY			= 1			# seconds, time before end of magnet ramp to start devices
 
 MOD_SENSE_RESISTOR 				= 9.13E3	# ohms
 MOD_BFR_RESISTOR 				= 15.0E3	# ohms
@@ -95,12 +97,11 @@ class Device_34401A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def configure(self, time_start):
+	def configure(self):
 		if self.en:
 			self.write('CONF:VOLT:DC')
 			self.write('TRIG:COUN ' + str(SAMPLING_NUM_POINTS))
 			self.write('TRIG:SOUR EXT')
-			self.init(time_start)
 	
 	def setResValue(self, res): # Sets the sense resistor value, in ohms
 		self.resistorValue = res
@@ -117,6 +118,9 @@ class Device_34401A:
 			return self.resource.query(message)
 		else:
 			return None
+			
+	def needs_init(self):
+		return True
 	
 	def init(self, data_time):
 		if self.en:
@@ -138,7 +142,6 @@ class Device_34401A:
 			return None
 			
 	def get_complete_data(self):
-		print(self.data)
 		return self.data
 
 """
@@ -172,14 +175,13 @@ class Device_34420A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def configure(self, time_start):
+	def configure(self):
 		if self.en:
 			self.write('CONF:VOLT:DC:DIFF')
 			self.write('SENS:VOLT:DC:NPLC 2')
 			self.write('TRIG:SOUR EXT')
 			self.write('TRIG:COUN ' + str(SAMPLING_NUM_POINTS))
 			self.write('TRIG:DEL 0')
-			self.init(time_start)
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -190,6 +192,9 @@ class Device_34420A:
 			return self.resource.query(message)
 		else:
 			return None
+	
+	def needs_init(self):
+		return True
 	
 	def init(self, data_time):
 		if self.en:
@@ -211,7 +216,6 @@ class Device_34420A:
 			return None
 			
 	def get_complete_data(self):
-		print('getting nv data')
 		return self.data
 
 """
@@ -242,9 +246,12 @@ class Device_DS345:
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
 	
-	def configure(self, time_start):
+	def configure(self):
 		if self.en:
 			self.write('OFFS 0')
+			
+	def needs_init(self):
+		return False
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -269,7 +276,7 @@ class Device_DS345:
 	
 	def set_fc_current(self, curr):
 		if self.en:
-			v = curr*10
+			v = curr*10/2
 			msg = 'OFFS ' + str(v)
 			if curr <= FIELDCOIL_TARGET_CURRENT:
 				self.write(msg)
@@ -290,7 +297,6 @@ class Device_Model420:
 		self.en = en
 		self.rm = resourceManager
 		self.data = {'timestamp':[],self.column:[]}
-		self.prev_data_start_time = 0
 		if self.en:
 			self.connect()
 	
@@ -307,7 +313,7 @@ class Device_Model420:
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
 
-	def configure(self, time_start):
+	def configure(self):
 		if self.en:
 			self.write("CONF:RAMP:RATE:CURR " + str(MAGNET_CURRENT_RAMP_RATE) + " A/s")
 	
@@ -321,10 +327,8 @@ class Device_Model420:
 		else:
 			return None
 	
-	def init(self):
-		if self.en:
-			self.write('INIT')
-			self.prev_data_start_time = time.time()
+	def needs_init(self):
+		return False
 	
 	def take_datapoint(self):
 		if self.en:
@@ -334,7 +338,7 @@ class Device_Model420:
 				self.data['timestamp'].extend([timepoint])
 				self.data[self.column].extend([newdatapoint])
 				return newdatapoint
-			except IOError:
+			except pyvisa.errors.VisaIOError:
 				print("Error fetching magnet data.")
 		else:
 			return None
@@ -372,10 +376,13 @@ class Device_33120A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def configure(self, time_start):
+	def configure(self):
 		if self.en:
 			self.write(FNGEN_ZERO_COMMAND)
 	
+	def needs_init(self):
+		return False
+		
 	def write(self, message): # Writes a message to the device
 		if self.en:
 			self.resource.write(message)
