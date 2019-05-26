@@ -13,7 +13,7 @@ TEMPERATURE_ADDRESS				= 'GPIB0::2::INSTR'
 MOD_CURRENT_SENSE_ADDRESS		= 'GPIB0::9::INSTR'
 MOD_CURRENT_SOURCE_ADDRESS		= 'GPIB0::8::INSTR'
 FIELDCOIL_CURRENT_TRIG_ADDRESS	= 'GPIB0::7::INSTR'
-FIELDCOIL_CURRENT_SEN_ADDRESS	= ''
+FIELDCOIL_CURRENT_SEN_ADDRESS	= 'GPIB0::3::INSTR'
 MAGNET_PROG_ADDRESS				= 'GPIB0::5::INSTR'
 EXT_TRIGGER_ADDRESS				= 'GPIB0::6::INSTR'
 
@@ -47,6 +47,9 @@ MAGNET_CURRENT_TARGET			= 1.5 		# 1.5 A
 MAGNET_CURRENT_MARGIN			= 0.01		# A
 
 FIELDCOIL_SENSE_RESISTOR 		= 50.0		# ohms
+FIELDCOIL_TARGET_CURRENT		= 0.085		# A
+FIELDCOIL_RESET_TIME			= 2			# seconds
+
 MOD_SENSE_RESISTOR 				= 9.13E3	# ohms
 MOD_BFR_RESISTOR 				= 15.0E3	# ohms
 SQUID_CURR_SENSE_RESISTOR 		= 101.5		# ohms
@@ -54,10 +57,11 @@ MOD_CURR_OPTIMAL				= 0			# mA, current of mod coils at steepest part of curve
 MOD_VOLT_OPTIMAL				= MOD_CURR_OPTIMAL*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
 MOD_CURR_TARGET_MAX				= 250.0E-6	# mA, maximum current in sweep
 MOD_CURR_STEP					= 2.0E-6	# mA, the spacing between each mod coil current value
+MOD_CURR_TIME_STEP				= 1.00		# seconds, time between each current step
 
 FNGEN_ZERO_COMMAND 				= 'APPL:DC DEF, DEF, 0'
-FNGEN_TRIG_COMMAND 				= 'APPL:SQU ' + str(SAMPLING_RATE) + ', 5, 2.5'
-FNGEN_CURR_OPTIMAL_COMMAND		= 'OFFS ' + str(MOD_VOLT_OPTIMAL) + ' VP'
+FNGEN_TRIG_COMMAND 				= 'APPL:SQU ' + str(SAMPLING_RATE) + ', 5, 2'
+FNGEN_CURR_OPTIMAL_COMMAND		= 'OFFS ' + str(MOD_VOLT_OPTIMAL)
 
 
 """
@@ -66,11 +70,12 @@ HP 34401A: MULTIMETER
 ==============================================================================
 """
 class Device_34401A:
-	def __init__(self, address, resourceManager, en):
+	def __init__(self, address, column, resourceManager, en):
 		self.address = address
+		self.column = column
 		self.en = en
 		self.rm = resourceManager
-		self.data = {}
+		self.data = {'timestamp':[],self.column:[]}
 		self.prev_data_start_time = 0
 		if self.en:
 			self.connect()
@@ -90,12 +95,12 @@ class Device_34401A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def configure(self):
+	def configure(self, time_start):
 		if self.en:
 			self.write('CONF:VOLT:DC')
+			self.write('TRIG:COUN ' + str(SAMPLING_NUM_POINTS))
 			self.write('TRIG:SOUR EXT')
-			self.write('TRIG:COUN ' + str(p108.SAMPLING_NUM_POINTS))
-			self.init()
+			self.init(time_start)
 	
 	def setResValue(self, res): # Sets the sense resistor value, in ohms
 		self.resistorValue = res
@@ -113,10 +118,10 @@ class Device_34401A:
 		else:
 			return None
 	
-	def init(self):
+	def init(self, data_time):
 		if self.en:
 			self.write('INIT')
-			self.prev_data_start_time = time.time()
+			self.prev_data_start_time = data_time
 	
 	def fetc_data(self):
 		if self.en:
@@ -124,10 +129,8 @@ class Device_34401A:
 				newdata = (self.resource.query('FETC?').strip('\n')).split(',')
 				end_time = self.prev_data_start_time + SAMPLING_TIMESTRETCH
 				timepoints = np.linspace(self.prev_data_start_time, end_time, SAMPLING_NUM_POINTS)
-				x = 0
-				for datapoint in newdata:
-					self.data[timepoints[x]] = datapoint
-					x += 1
+				self.data['timestamp'].extend(timepoints)
+				self.data[self.column].extend(newdata)
 				return newdata
 			except IOError:
 				print("Error fetching data.")
@@ -135,6 +138,7 @@ class Device_34401A:
 			return None
 			
 	def get_complete_data(self):
+		print(self.data)
 		return self.data
 
 """
@@ -143,11 +147,12 @@ AGILENT 34420A: NANO VOLT METER
 ==============================================================================
 """
 class Device_34420A:
-	def __init__(self, address, resourceManager, en):
+	def __init__(self, address, column, resourceManager, en):
 		self.address = address
+		self.column = column
 		self.en = en
 		self.rm = resourceManager
-		self.data = {}
+		self.data = {'timestamp':[],self.column:[]}
 		self.prev_data_start_time = 0
 		if self.en:
 			self.connect()
@@ -167,14 +172,14 @@ class Device_34420A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def configure(self):
+	def configure(self, time_start):
 		if self.en:
 			self.write('CONF:VOLT:DC:DIFF')
 			self.write('SENS:VOLT:DC:NPLC 2')
 			self.write('TRIG:SOUR EXT')
-			self.write('TRIG:COUN ' + str(p108.SAMPLING_NUM_POINTS))
+			self.write('TRIG:COUN ' + str(SAMPLING_NUM_POINTS))
 			self.write('TRIG:DEL 0')
-			self.init()
+			self.init(time_start)
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -186,10 +191,10 @@ class Device_34420A:
 		else:
 			return None
 	
-	def init(self):
+	def init(self, data_time):
 		if self.en:
 			self.write('INIT')
-			self.prev_data_start_time = time.time()
+			self.prev_data_start_time = data_time
 	
 	def fetc_data(self):
 		if self.en:
@@ -197,10 +202,8 @@ class Device_34420A:
 				newdata = (self.resource.query('FETC?').strip('\n')).split(',')
 				end_time = self.prev_data_start_time + SAMPLING_TIMESTRETCH
 				timepoints = np.linspace(self.prev_data_start_time, end_time, SAMPLING_NUM_POINTS)
-				x = 0
-				for datapoint in newdata:
-					self.data[timepoints[x]] = datapoint
-					x += 1
+				self.data['timestamp'].extend(timepoints)
+				self.data[self.column].extend(newdata)
 				return newdata
 			except IOError:
 				print("Error fetching data.")
@@ -208,6 +211,7 @@ class Device_34420A:
 			return None
 			
 	def get_complete_data(self):
+		print('getting nv data')
 		return self.data
 
 """
@@ -238,9 +242,9 @@ class Device_DS345:
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
 	
-	def configure(self):
+	def configure(self, time_start):
 		if self.en:
-			self.write('OFFS 0 VP')
+			self.write('OFFS 0')
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -259,8 +263,15 @@ class Device_DS345:
 	def set_current(self, curr):
 		if self.en:
 			v = curr*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
-			msg = 'OFFS ' + str(v) + ' VP'
+			msg = 'OFFS ' + str(v)
 			if curr <= MOD_CURR_TARGET_MAX:
+				self.write(msg)
+	
+	def set_fc_current(self, curr):
+		if self.en:
+			v = curr*10
+			msg = 'OFFS ' + str(v)
+			if curr <= FIELDCOIL_TARGET_CURRENT:
 				self.write(msg)
 	
 	def init(self):
@@ -273,11 +284,12 @@ AMI MODEL 420: POWER SUPPLY PROGRAMMER
 ==============================================================================
 """
 class Device_Model420:
-	def __init__(self, address, resourceManager, en):
+	def __init__(self, address, column, resourceManager, en):
 		self.address = address
+		self.column = column
 		self.en = en
 		self.rm = resourceManager
-		self.data = {}
+		self.data = {'timestamp':[],self.column:[]}
 		self.prev_data_start_time = 0
 		if self.en:
 			self.connect()
@@ -295,9 +307,9 @@ class Device_Model420:
 		if self.en:
 			self.resource = self.rm.open_resource(self.address)
 
-	def configure(self):
+	def configure(self, time_start):
 		if self.en:
-			self.write("CONF:RAMP:RATE:CURR " + str(p108.MAGNET_CURRENT_RAMP_RATE) + " A/s")
+			self.write("CONF:RAMP:RATE:CURR " + str(MAGNET_CURRENT_RAMP_RATE) + " A/s")
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
@@ -319,9 +331,10 @@ class Device_Model420:
 			try:
 				newdatapoint = float(self.resource.query("CURR:MAG?").lstrip('\x00'))
 				timepoint = time.time()
-				self.data[timepoint] = newdatapoint
+				self.data['timestamp'].extend([timepoint])
+				self.data[self.column].extend([newdatapoint])
 				return newdatapoint
-			except VI_Error_TMO:
+			except IOError:
 				print("Error fetching magnet data.")
 		else:
 			return None
@@ -359,9 +372,9 @@ class Device_33120A:
 			self.write('*CLS')
 			self.write('*RST')
 	
-	def configure(self):
+	def configure(self, time_start):
 		if self.en:
-			self.write(p108.FNGEN_ZERO_COMMAND)
+			self.write(FNGEN_ZERO_COMMAND)
 	
 	def write(self, message): # Writes a message to the device
 		if self.en:
