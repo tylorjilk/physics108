@@ -48,14 +48,14 @@ MAGNET_CURRENT_TARGET			= 1.5 		# 1.5 A
 MAGNET_CURRENT_MARGIN			= 0.005		# A
 
 FIELDCOIL_SENSE_RESISTOR 		= 50.0		# ohms
-FIELDCOIL_TARGET_CURRENT		= 0.070		# A
+FIELDCOIL_TARGET_CURRENT		= 0.080		# A
 FIELDCOIL_RESET_TIME			= 2			# seconds
 FIELDCOIL_INIT_DELAY			= 1			# seconds, time before end of magnet ramp to start devices
 
 MOD_SENSE_RESISTOR 				= 9.13E3	# ohms
 MOD_BFR_RESISTOR 				= 15.0E3	# ohms
 SQUID_CURR_SENSE_RESISTOR 		= 101.5		# ohms
-MOD_CURR_OPTIMAL				= 0			# mA, current of mod coils at steepest part of curve
+MOD_CURR_OPTIMAL				= 102E-6	# A, current of mod coils at steepest part of curve
 MOD_VOLT_OPTIMAL				= MOD_CURR_OPTIMAL*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
 MOD_CURR_TARGET_MAX				= 250.0E-6	# mA, maximum current in sweep
 MOD_CURR_STEP					= 2.0E-6	# mA, the spacing between each mod coil current value
@@ -338,7 +338,7 @@ class Device_Model420:
 				self.data['timestamp'].extend([timepoint])
 				self.data[self.column].extend([newdatapoint])
 				return newdatapoint
-			except pyvisa.errors.VisaIOError:
+			except IOError:
 				print("Error fetching magnet data.")
 		else:
 			return None
