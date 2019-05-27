@@ -194,6 +194,7 @@ def main():
 				break
 		fngen_mod_curr_source.set_current(0)
 		save_data()
+		clear_devices()
 	
 	# (3) magnet run with reset squid and nv measure
 	elif p108.RUN_SELECTION_ID == 3:
