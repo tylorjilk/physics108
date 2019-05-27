@@ -35,7 +35,7 @@ RUN_SELECTION_ID				= 0			# Set by user input
 		(4) magnet run
 		(5) reset squid
 """
-SAMPLING_RATE 					= 0.75 		# Hz ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SAMPLING_RATE 					= 5 		# Hz 
 SAMPLING_TIMESTRETCH			= 5 		# seconds
 SAMPLING_NUM_POINTS				= SAMPLING_RATE*SAMPLING_TIMESTRETCH
 INIT_TIME_DELAY					= 0.2		# seconds
@@ -59,7 +59,7 @@ MOD_CURR_OPTIMAL				= 0			# mA, current of mod coils at steepest part of curve
 MOD_VOLT_OPTIMAL				= MOD_CURR_OPTIMAL*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
 MOD_CURR_TARGET_MAX				= 250.0E-6	# mA, maximum current in sweep
 MOD_CURR_STEP					= 2.0E-6	# mA, the spacing between each mod coil current value
-MOD_CURR_TIME_STEP				= 2.00		# seconds, time between each current step
+MOD_CURR_TIME_STEP				= 1.00		# seconds, time between each current step
 
 FNGEN_ZERO_COMMAND 				= 'APPL:DC DEF, DEF, 0'
 FNGEN_TRIG_COMMAND 				= 'APPL:SQU ' + str(SAMPLING_RATE) + ', 5, 2'
@@ -178,7 +178,7 @@ class Device_34420A:
 	def configure(self):
 		if self.en:
 			self.write('CONF:VOLT:DC:DIFF')
-			self.write('SENS:VOLT:DC:NPLC 20')# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			self.write('SENS:VOLT:DC:NPLC 2')
 			self.write('TRIG:SOUR EXT')
 			self.write('TRIG:COUN ' + str(SAMPLING_NUM_POINTS))
 			self.write('TRIG:DEL 0')
