@@ -24,7 +24,12 @@ def clear_input():
 def configure_devices():
 	for device in device_dict:
 		device_dict[device].configure()
-	#time.sleep(p108.INIT_TIME_DELAY) # Need at least 20ms delay for devices to initialize
+		if device == "fc_curr_sen":
+			device_dict[device].setResValue(p108.FIELDCOIL_SENSE_RESISTOR)
+		if device == "squid_curr_sen":
+			device_dict[device].setResValue(p108.SQUID_CURR_SENSE_RESISTOR)
+		if device == "mod_curr_sen":
+			device_dict[device].setResValue(p108.MOD_SENSE_RESISTOR)
 	
 def init_devices():
 	time_now = time.time()
@@ -39,7 +44,7 @@ def save_data():
 	if p108.TEST:
 		filename = os.getcwd() + '\\data\\test\\' + str(p108.RUN_IDENTIFIER) + "_" + timestamp + ".csv"
 	else:
-		filename = os.getcwd() + '\\data\\3rd_cooldown\\' + str(p108.RUN_IDENTIFIER) + "_" + timestamp + ".csv"
+		filename = os.getcwd() + '\\data\\4th_cooldown\\' + str(p108.RUN_IDENTIFIER) + "_" + timestamp + ".csv"
 	file = open(filename, "w")
 	
 	df_list = []
@@ -47,9 +52,9 @@ def save_data():
 		if device_dict[device].data is not None and device_dict[device].isEnabled():
 			df = pd.DataFrame.from_dict(device_dict[device].get_complete_data())
 			df_list.append(df)
-	for df in df_list:
-		if df.empty:
-			df_list.remove(df)
+	#for df in df_list:
+		#if df.empty:
+			#df_list.remove(df)
 	df_final = pd.DataFrame()
 	if len(df_list) > 1:
 		df0 = df_list[0]
@@ -72,6 +77,8 @@ def clear_devices():
 			device_dict[device].write('*RST')
 		if device is "ext_trig":
 			device_dict[device].write(p108.FNGEN_ZERO_COMMAND)
+		if device is "fc_curr_sour":
+			device_dict[device].set_fc_current(0)
 
 def main():
 	signal.signal(signal.SIGINT, signal_handler)
@@ -94,14 +101,14 @@ def main():
 	
 	# Create devices that the program will communicate with
 	rm = visa.ResourceManager()
-	nanovoltmeter				= p108.Device_34420A(	p108.NANOVOLTMETER_ADDRESS, 		p108.NANOVOLTMETER_COLUMN_HEADING,	rm,	True	)
+	nanovoltmeter				= p108.Device_34420A(	p108.NANOVOLTMETER_ADDRESS, 		p108.NANOVOLTMETER_COLUMN_HEADING,	rm,	False	)
 	multimeter_squid_curr_sense	= p108.Device_34401A(	p108.SQUID_CURRENT_SENSE_ADDRESS,	p108.SQUID_CURR_SEN_COLUMN_HEADING,	rm,	True	)
 	multimeter_temperature		= p108.Device_34401A(	p108.TEMPERATURE_ADDRESS, 			p108.TEMPERATURE_COLUMN_HEADING,	rm,	True	)
 	multimeter_mod_curr_sense 	= p108.Device_34401A(	p108.MOD_CURRENT_SENSE_ADDRESS,	 	p108.MOD_CURR_SEN_COLUMN_HEADING,	rm,	True	)
 	fngen_mod_curr_source		= p108.Device_DS345(	p108.MOD_CURRENT_SOURCE_ADDRESS,										rm,	True	)
-	fngen_fieldcoil_curr_trig	= p108.Device_DS345(	p108.FIELDCOIL_CURRENT_TRIG_ADDRESS,									rm, False	)
+	fngen_fieldcoil_curr_trig	= p108.Device_DS345(	p108.FIELDCOIL_CURRENT_TRIG_ADDRESS,									rm, True	)
 	multimeter_fieldcoil_sense	= p108.Device_34401A(	p108.FIELDCOIL_CURRENT_SEN_ADDRESS,	p108.FC_CURR_SEN_COLUMN_HEADING,	rm,	False	)
-	magnet_programmer			= p108.Device_Model420(	p108.MAGNET_PROG_ADDRESS,			p108.MAGNET_PROG_COLUMN_HEADING	,	rm, False	)
+	magnet_programmer			= p108.Device_Model420(	p108.MAGNET_PROG_ADDRESS,			p108.MAGNET_PROG_COLUMN_HEADING	,	rm, True	)
 	fngen_ext_trigger 			= p108.Device_33120A(	p108.EXT_TRIGGER_ADDRESS,												rm,	True	)
 	
 	# Create a global dictionary which contains all of the devices
@@ -113,6 +120,7 @@ def main():
 					"mod_curr_sen" : multimeter_mod_curr_sense,
 					"mod_curr_sour" : fngen_mod_curr_source,
 					"fc_curr_sour" : fngen_fieldcoil_curr_trig,
+					"fc_curr_sen" : multimeter_fieldcoil_sense,
 					"magnet_prog" : magnet_programmer,
 					"ext_trig" : fngen_ext_trigger}
 	
@@ -124,12 +132,14 @@ def main():
 	print("\t(4) magnet run")
 	print("\t(5) reset squid")
 	print("\t(6) reset squid and nv measure")
+	print("\t(7) ramp FC current and nv measure")
+	print("\t(8) log nv while magnet ramp")
 	while(True):
 		try:
 			val = int(raw_input('Selection: ').strip('\n'))
 			clear_input()
 			p108.RUN_SELECTION_ID = val
-			if p108.RUN_SELECTION_ID > 0 and p108.RUN_SELECTION_ID <= 6:
+			if p108.RUN_SELECTION_ID > 0 and p108.RUN_SELECTION_ID <= 8:
 				print("Running program ID: " + str(p108.RUN_SELECTION_ID)),
 				print(" with identifier '" + p108.RUN_IDENTIFIER + "'")
 				break;
@@ -137,9 +147,6 @@ def main():
 				print("Invalid number.")
 		except ValueError:
 			print("Must enter a number")
-	
-	# Configure all of the devices
-	#configure_devices()
 
 	# (1) voltage-versus-time of squid
 	if p108.RUN_SELECTION_ID == 1:
@@ -330,6 +337,67 @@ def main():
 				sys.stdout.flush()
 				time.sleep(p108.INIT_TIME_DELAY)
 		save_data()
+		
+	# (7) ramp FC current, nv measure
+	elif p108.RUN_SELECTION_ID==7:
+		configure_devices()
+		fngen_ext_trigger.write(p108.FNGEN_TRIG_COMMAND)
+		curr_list = np.linspace(0, p108.FIELDCOIL_MAX_CURRENT, p108.FIELDCOIL_MAX_CURRENT/p108.FIELDCOIL_CURR_STEP)
+		print(curr_list)
+		fngen_fieldcoil_curr_trig.set_fc_current(0)
+		step = 1
+		prev_data_time = time.time()
+		prev_curr_time = prev_data_time
+		init_devices()
+		while True:
+			if time.time() - prev_data_time >= p108.SAMPLING_TIMESTRETCH:
+				sys.stdout.write('Measuring data...')
+				multimeter_temperature.fetc_data()
+				nanovoltmeter.fetc_data()
+				multimeter_mod_curr_sense.fetc_data()
+				multimeter_squid_curr_sense.fetc_data()
+				multimeter_fieldcoil_sense.fetc_data()
+				prev_data_time = time.time()
+				init_devices()
+				
+				sys.stdout.write('\r')
+				sys.stdout.flush()
+				time.sleep(p108.INIT_TIME_DELAY)
+			if time.time() - prev_curr_time >= p108.FIELDCOIL_CURR_TIME_STEP:
+				prev_curr_time = time.time()
+				print(curr_list[step])
+				fngen_fieldcoil_curr_trig.set_fc_current(curr_list[step])
+				step += 1
+			if step >= len(curr_list):
+				break
+		fngen_fieldcoil_curr_trig.set_fc_current(0)
+		save_data()
+		clear_devices()
+
+	# (8) voltage-versus-time of squid
+	if p108.RUN_SELECTION_ID == 8:
+		configure_devices()
+		#ramp_up_magnet()
+		magnet_programmer.write('ZERO')
+		print("Setting mod coil current to " + str(p108.MOD_CURR_OPTIMAL) + " mA")
+		fngen_mod_curr_source.set_optimal_current()
+		init_devices()
+		time.sleep(p108.INIT_TIME_DELAY)
+		fngen_ext_trigger.write(p108.FNGEN_TRIG_COMMAND)
+		prev_data_time = time.time()
+		while True:
+			if time.time() - prev_data_time >= p108.SAMPLING_TIMESTRETCH:
+				sys.stdout.write('Measuring data...')
+				multimeter_temperature.fetc_data()
+				nanovoltmeter.fetc_data()
+				multimeter_squid_curr_sense.fetc_data()
+				multimeter_mod_curr_sense.fetc_data()
+				prev_data_time = time.time()
+				init_devices()
+				
+				sys.stdout.write('\r')
+				sys.stdout.flush()
+				time.sleep(p108.INIT_TIME_DELAY)
 
 def retrieve_data():
 	datalist = []
