@@ -43,23 +43,24 @@ SAMPLING_DELAY_MAGNET			= 0.1		# seconds
 
 MAGNET_FIELD_CONSTANT 			= 0.10238 	#field constant of magnet, T/A
 MAGNET_FIELD_RAMP_RATE 			= 0.03		# ramp rate of magnet, T/s
-MAGNET_CURRENT_RAMP_RATE 		= 0.01 		# 0.3 A/s  magnet_ramp_rate/magnet_constant*0.1
-MAGNET_CURRENT_TARGET			= 0.5 		# 1.5 A
+MAGNET_CURRENT_RAMP_RATE 		= 0.3		# 0.3 A/s  magnet_ramp_rate/magnet_constant*0.1
+MAGNET_CURRENT_TARGET			= 1.5 		# 1.5 A
 MAGNET_CURRENT_MARGIN			= 0.005		# A
 
 FIELDCOIL_SENSE_RESISTOR 		= 10.0		# ohms
 FIELDCOIL_TARGET_CURRENT		= 0.070		# A
-FIELDCOIL_RESET_TIME			= 2			# seconds
+FIELDCOIL_RESET_TIME			= 2.5			# seconds
 FIELDCOIL_INIT_DELAY			= 1			# seconds, time before end of magnet ramp to start devices
 
 FIELDCOIL_MAX_CURRENT			= 0.05		# A
-FIELDCOIL_CURR_STEP				= 0.0005		# A
+FIELDCOIL_CURR_STEP				= 0.0005	# A
 FIELDCOIL_CURR_TIME_STEP		= 2			# seconds, time between each current step
+FIELDCOIL_CURR_OPTIMAL			= 0.024035475 # A
 
 MOD_SENSE_RESISTOR 				= 9.13E3	# ohms
 MOD_BFR_RESISTOR 				= 15.0E3	# ohms
 SQUID_CURR_SENSE_RESISTOR 		= 101.5		# ohms
-MOD_CURR_OPTIMAL				= 20.9E-6	# A, current of mod coils at steepest part of curve
+MOD_CURR_OPTIMAL				= 0	# A, current of mod coils at steepest part of curve
 MOD_VOLT_OPTIMAL				= MOD_CURR_OPTIMAL*(MOD_BFR_RESISTOR + MOD_SENSE_RESISTOR)/2.0
 MOD_CURR_TARGET_MAX				= 250.0E-6	# mA, maximum current in sweep
 MOD_CURR_STEP					= 2.0E-6	# mA, the spacing between each mod coil current value

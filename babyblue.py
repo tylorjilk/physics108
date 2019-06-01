@@ -32,7 +32,7 @@ def configure_devices():
 			device_dict[device].setResValue(p108.MOD_SENSE_RESISTOR)
 	
 def init_devices():
-	time_now = time.time()
+	time_now = float(time.time())
 	for device in device_dict:
 		if device_dict[device].needs_init():
 			device_dict[device].init(time_now)
@@ -79,6 +79,8 @@ def clear_devices():
 			device_dict[device].write(p108.FNGEN_ZERO_COMMAND)
 		if device is "fc_curr_sour":
 			device_dict[device].set_fc_current(0)
+		if device is "nanovolt":
+			device_dict[device].write('CONF:VOLT:DC:DIFF')
 
 def main():
 	signal.signal(signal.SIGINT, signal_handler)
@@ -101,14 +103,14 @@ def main():
 	
 	# Create devices that the program will communicate with
 	rm = visa.ResourceManager()
-	nanovoltmeter				= p108.Device_34420A(	p108.NANOVOLTMETER_ADDRESS, 		p108.NANOVOLTMETER_COLUMN_HEADING,	rm,	False	)
+	nanovoltmeter				= p108.Device_34420A(	p108.NANOVOLTMETER_ADDRESS, 		p108.NANOVOLTMETER_COLUMN_HEADING,	rm,	True	)
 	multimeter_squid_curr_sense	= p108.Device_34401A(	p108.SQUID_CURRENT_SENSE_ADDRESS,	p108.SQUID_CURR_SEN_COLUMN_HEADING,	rm,	True	)
 	multimeter_temperature		= p108.Device_34401A(	p108.TEMPERATURE_ADDRESS, 			p108.TEMPERATURE_COLUMN_HEADING,	rm,	True	)
 	multimeter_mod_curr_sense 	= p108.Device_34401A(	p108.MOD_CURRENT_SENSE_ADDRESS,	 	p108.MOD_CURR_SEN_COLUMN_HEADING,	rm,	True	)
 	fngen_mod_curr_source		= p108.Device_DS345(	p108.MOD_CURRENT_SOURCE_ADDRESS,										rm,	True	)
 	fngen_fieldcoil_curr_trig	= p108.Device_DS345(	p108.FIELDCOIL_CURRENT_TRIG_ADDRESS,									rm, True	)
-	multimeter_fieldcoil_sense	= p108.Device_34401A(	p108.FIELDCOIL_CURRENT_SEN_ADDRESS,	p108.FC_CURR_SEN_COLUMN_HEADING,	rm,	False	)
-	magnet_programmer			= p108.Device_Model420(	p108.MAGNET_PROG_ADDRESS,			p108.MAGNET_PROG_COLUMN_HEADING	,	rm, True	)
+	multimeter_fieldcoil_sense	= p108.Device_34401A(	p108.FIELDCOIL_CURRENT_SEN_ADDRESS,	p108.FC_CURR_SEN_COLUMN_HEADING,	rm,	True	)
+	magnet_programmer			= p108.Device_Model420(	p108.MAGNET_PROG_ADDRESS,			p108.MAGNET_PROG_COLUMN_HEADING	,	rm, False	)
 	fngen_ext_trigger 			= p108.Device_33120A(	p108.EXT_TRIGGER_ADDRESS,												rm,	True	)
 	
 	# Create a global dictionary which contains all of the devices
@@ -178,6 +180,7 @@ def main():
 		fngen_ext_trigger.write(p108.FNGEN_TRIG_COMMAND)
 		curr_list = np.linspace(0, p108.MOD_CURR_TARGET_MAX, p108.MOD_CURR_TARGET_MAX/p108.MOD_CURR_STEP)
 		fngen_mod_curr_source.set_current(0)
+		#fngen_fieldcoil_curr_trig.set_fc_current(p108.FIELDCOIL_CURR_OPTIMAL)
 		step = 1
 		prev_data_time = time.time()
 		prev_curr_time = prev_data_time
@@ -306,6 +309,7 @@ def main():
 				print("and done.")
 				fngen_fieldcoil_curr_trig.set_fc_current(0)
 				break
+		clear_devices()
 	
 	# (6) reset squid and nv measure
 	elif p108.RUN_SELECTION_ID ==6:
@@ -499,6 +503,7 @@ def log_ramp_down(fieldcoil_bool):
 	print("Driving field coils low")
 	fngen_fieldcoil_curr_trig.set_fc_current(0)
 	print('\nMagnet successfully ramped down.')
+
 	
 def drive_field_coil():
 	print("Starting field coils..."),

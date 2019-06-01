@@ -35,7 +35,6 @@ while sweetspot < 0:
 while sweetspot > coeffs[1]:
 	sweetspot -= coeffs[1]
 
-	
 plt.show()
 			
 print('Sweetspot = '+str(sweetspot)+'uA '+'Max Sensitivity = '+str(sensitivity)+'uV/Phi0')
