@@ -49,7 +49,7 @@ MAGNET_CURRENT_MARGIN			= 0.005		# A
 
 FIELDCOIL_SENSE_RESISTOR 		= 10.0		# ohms
 FIELDCOIL_TARGET_CURRENT		= 0.070		# A
-FIELDCOIL_RESET_TIME			= 2.5			# seconds
+FIELDCOIL_RESET_TIME			= 2.5		# seconds
 FIELDCOIL_INIT_DELAY			= 1			# seconds, time before end of magnet ramp to start devices
 
 FIELDCOIL_MAX_CURRENT			= 0.05		# A
